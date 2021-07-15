@@ -1,0 +1,8 @@
+{
+  "name": "sw-proxy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:grug/sw-proxy.git",
+  "author": "Dave Cooper <dave@davecooper.dev>",
+  "license": "MIT"
+}
