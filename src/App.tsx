@@ -12,12 +12,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    var oReq = new XMLHttpRequest();
-    oReq.open(
+    const req = new XMLHttpRequest();
+    req.open(
       "GET",
       "https://api.thecatapi.com/v1/images/search?api_key=a56959a4-3749-4be6-8f5e-c53202a436b4"
     );
-    oReq.send();
+    req.send();
   }, []);
 
   return (
