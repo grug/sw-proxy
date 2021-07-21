@@ -1,5 +1,6 @@
 // eslint-disable-next-line
 import { precacheAndRoute } from "workbox-precaching";
+import { shouldSendRequestToProxy } from "./service-worker-utils";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -12,18 +13,10 @@ function handleFetch(event: FetchEvent) {
   const vendorAllowlist = ["analytics.google.com", "honeycomb.io"];
 
   event.respondWith(
-    (function () {
-      return shouldSendRequestToProxy(event.request, vendorAllowlist)
-        ? fetch(generateProxyRequest(event.request))
-        : fetch(event.request);
-    })()
+    shouldSendRequestToProxy(event.request, vendorAllowlist)
+      ? fetch(generateProxyRequest(event.request))
+      : fetch(event.request)
   );
-}
-
-function shouldSendRequestToProxy(request: Request, vendorAllowlist: string[]) {
-  const hostname = new URL(request.url).hostname.replace("www.", "");
-
-  return vendorAllowlist.includes(hostname);
 }
 
 function generateProxyRequest(request: Request) {
@@ -33,6 +26,7 @@ function generateProxyRequest(request: Request) {
 
   const proxyUrl = `${url
     .replace("www.", "")
+    .replace(/\/$/, "")
     .replace(/\./g, "_")}.${proxyBaseUrl}`;
 
   const proxyRequest = new Request(proxyUrl, {
@@ -43,4 +37,4 @@ function generateProxyRequest(request: Request) {
   return proxyRequest;
 }
 
-export { handleFetch, shouldSendRequestToProxy, generateProxyRequest };
+export { handleFetch, generateProxyRequest };

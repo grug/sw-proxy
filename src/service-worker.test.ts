@@ -1,11 +1,18 @@
-import {
-  handleFetch,
-  shouldSendRequestToProxy,
-  generateProxyRequest,
-} from "./service-worker";
+import { generateProxyRequest, handleFetch } from "./service-worker";
+import { shouldSendRequestToProxy } from "./service-worker-utils";
 import { enableFetchMocks } from "jest-fetch-mock";
 
 describe("Service worker", () => {
+  beforeAll(() => {
+    jest.resetModules();
+    jest.resetAllMocks();
+    enableFetchMocks();
+  });
+
+  beforeEach(() => {
+    fetchMock.resetMocks();
+  });
+
   describe("shouldSendRequestToProxy", () => {
     it("should return true when hostname of request is in vendor allowlist", () => {
       const request = new Request("https://foo.com");
@@ -26,9 +33,9 @@ describe("Service worker", () => {
 
       const proxyRequest = generateProxyRequest(request);
 
-      expect(proxyRequest).toMatchObject({
-        url: "https://foo_com.someproxy.com",
-      });
+      expect(proxyRequest).toEqual(
+        expect.objectContaining({ url: "https://foo_com.someproxy.com/" })
+      );
     });
 
     it("should convert dots in the hostname into underscores", () => {
@@ -36,9 +43,9 @@ describe("Service worker", () => {
 
       const proxyRequest = generateProxyRequest(request);
 
-      expect(proxyRequest).toMatchObject({
-        url: "https://some_long_domain_test_com.someproxy.com",
-      });
+      expect(proxyRequest.url).toEqual(
+        "https://some_long_domain_test_com.someproxy.com/"
+      );
     });
 
     it("should preserve headers and method", () => {
@@ -49,26 +56,64 @@ describe("Service worker", () => {
 
       const proxyRequest = generateProxyRequest(request);
 
-      expect(proxyRequest).toMatchObject({ method: "POST" });
+      expect(proxyRequest).toEqual(expect.objectContaining({ method: "POST" }));
       expect(proxyRequest.headers.get("some")).toEqual("header");
     });
   });
 
   describe("handleFetch", () => {
-    beforeAll(() => {
-      enableFetchMocks();
-    });
+    it("calls proxy server when the request is destined for the proxy", () => {
+      jest.doMock("./service-worker-utils", () => ({
+        shouldSendRequestToProxy: jest.fn().mockImplementation(() => true),
+      }));
+      const { handleFetch } = require("./service-worker");
+      fetchMock.mockImplementation((val) => {
+        const symbol = Object.getOwnPropertySymbols(val)[1];
+        // @ts-ignore
+        return val[symbol];
+      });
 
-    beforeEach(() => {
-      fetchMock.resetMocks();
-    });
+      const event = {
+        respondWith: jest.fn(),
+        request: new Request("https://analytics.google.com"),
+      } as unknown as FetchEvent;
 
-    it("calls proxy server when the request is destined for there", () => {
-      expect(1).toEqual(1);
+      handleFetch(event);
+
+      expect(event.respondWith).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parsedURL: expect.objectContaining({
+            host: "analytics_google_com.someproxy.com",
+          }),
+        })
+      );
     });
 
     it("forwards the request to the original destination when the proxy isn't needed", () => {
-      expect(1).toEqual(1);
+      jest.doMock("./service-worker-utils", () => ({
+        shouldSendRequestToProxy: jest.fn().mockImplementation(() => false),
+      }));
+      const { handleFetch } = require("./service-worker");
+      fetchMock.mockImplementation((val) => {
+        const symbol = Object.getOwnPropertySymbols(val)[1];
+        // @ts-ignore
+        return val[symbol];
+      });
+
+      const event = {
+        respondWith: jest.fn(),
+        request: new Request("https://analytics.google.com"),
+      } as unknown as FetchEvent;
+
+      handleFetch(event);
+
+      expect(event.respondWith).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parsedURL: expect.objectContaining({
+            host: "analytics.google.com",
+          }),
+        })
+      );
     });
   });
 });
