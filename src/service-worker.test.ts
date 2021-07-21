@@ -1,4 +1,4 @@
-import { generateProxyRequest, handleFetch } from "./service-worker";
+import { generateProxyRequest } from "./service-worker";
 import { shouldSendRequestToProxy } from "./service-worker-utils";
 import { enableFetchMocks } from "jest-fetch-mock";
 
